@@ -1,4 +1,4 @@
-package hsdb
+package surrealhigh
 
 import "github.com/google/uuid"
 
