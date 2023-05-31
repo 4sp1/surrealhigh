@@ -14,6 +14,15 @@ type Doc interface {
 	Table() Table
 }
 
+type doc struct {
+	from Table
+}
+
+func (doc doc) Table() Table {
+	return doc.from
+}
+
+// DBDoc is a low level document as it has a reference to the database driver
 type DBDoc interface {
 	Doc
 

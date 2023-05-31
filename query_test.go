@@ -13,13 +13,21 @@ func TestNewQueryFrom(t *testing.T) {
 	})
 	t.Run("select * from logs where record_id=$rid", func(t *testing.T) {
 		q := NewQueryFrom(Table("logs"), QueryOptionWhere(
-			ConditionIs(NewConditionAtomField(Field("record_id")), NewConditionAtomVar("rid", nil))))
+			NewConditionIs(NewConditionAtomField(Field("record_id")), NewConditionAtomVar("rid", nil))))
 		assert.Equal(t, "SELECT * FROM logs WHERE (record_id IS $rid)", q.String())
 	})
-	// TODO t.Run("select * from records where state=$state and date<$until")
 	t.Run("select * from logs order by timestamp asc", func(t *testing.T) {
 		q := NewQueryFrom(Table("logs"), QueryOptionOrderByAsc(Field("timestamp")))
 		assert.Equal(t, "SELECT * FROM logs ORDER BY timestamp ASC", q.String())
+	})
+	t.Run("select * from records where record_id=$id and is_out=$out", func(t *testing.T) {
+		q := NewQueryFrom(Table("records"), QueryOptionWhere(
+			NewConditionAnd(
+				NewConditionIs(NewConditionAtomField(Field("record_id")), NewConditionAtomVar("id", nil)),
+				NewConditionIs(NewConditionAtomField(Field("is_out")), NewConditionAtomVar("out", nil)),
+			),
+		))
+		assert.Equal(t, "SELECT * FROM records WHERE ((record_id IS $id) AND (is_out IS $out))", q.String())
 	})
 }
 
@@ -62,7 +70,7 @@ func TestQueryString(t *testing.T) {
 			idVar                         = varWhereClause("id")
 			recordsTable                  = Table("records")
 		)
-		q := query{
+		q := selectStatement{
 			where: binaryWhereClause{
 				l:  recordIdField,
 				op: whereOpIs,

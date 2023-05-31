@@ -8,6 +8,7 @@ func (f Field) String() string {
 	return string(f)
 }
 
+// Thing is a pointer to a Doc
 type Thing string
 
 type Id uuid.UUID
