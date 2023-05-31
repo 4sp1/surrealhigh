@@ -2,6 +2,12 @@ package surrealhigh
 
 import "github.com/google/uuid"
 
+type Field string
+
+func (f Field) String() string {
+	return string(f)
+}
+
 type Thing string
 
 type Id uuid.UUID
