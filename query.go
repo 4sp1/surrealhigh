@@ -9,7 +9,7 @@ import (
 
 func NewQueryFrom(from Table, opts ...QueryOption) Select {
 	q := Select{
-		selectStatement: selectStatement{
+		valuedSelectStatement: valuedSelectStatement{
 			from: from,
 		},
 	}
@@ -48,12 +48,39 @@ func QueryOptionOrderByDesc(f Field) QueryOption {
 	}
 }
 
-type Select struct{ selectStatement }
+type Select struct{ valuedSelectStatement }
+
+var _ valuedWhereClause = valuedSelectStatement{}
+
+func (vc valuedSelectStatement) String() string {
+	return vc.asWhereClause().String()
+}
+
+func (vc valuedSelectStatement) asWhereClause() whereClause {
+	c := selectStatement{
+		orderBy: vc.orderBy,
+		from:    vc.from,
+	}
+	if vc.where != nil {
+		c.where = vc.where.asWhereClause()
+	}
+	return c
+}
+
+func (vc valuedSelectStatement) valuedVars() []conditionAtomVar {
+	return vc.where.valuedVars()
+}
+
+type valuedSelectStatement struct {
+	orderBy *selectOrderBy
+	where   valuedWhereClause
+	from    Table
+}
 
 type selectStatement struct {
 	orderBy *selectOrderBy
-	where   whereClause
 	from    Table
+	where   whereClause
 }
 
 type (
@@ -74,6 +101,8 @@ var (
 )
 
 type valuedWhereClause interface {
+	whereClause
+
 	valuedVars() []conditionAtomVar
 	asWhereClause() whereClause
 }
