@@ -31,6 +31,30 @@ func TestNewQueryFrom(t *testing.T) {
 	})
 }
 
+func TestCondition_ValuedVars(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		condition Condition
+		vars      []conditionAtomVar
+	}{
+		{
+			name: "record_id = $id(0) and is_out = $out(false)",
+			condition: NewConditionAnd(
+				NewConditionIs(NewConditionAtomField(Field("is_out")), NewConditionAtomVar("out", false)),
+				NewConditionIs(NewConditionAtomField(Field("record_id")), NewConditionAtomVar("id", 0)),
+			),
+			vars: []conditionAtomVar{
+				{name: varWhereClause("out"), value: false},
+				{name: varWhereClause("id"), value: 0},
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.vars, test.condition.valuedVars())
+		})
+	}
+}
+
 func TestWhereClauseString(t *testing.T) {
 	t.Run("key=$key and record_id=$id and is_out=false", func(t *testing.T) {
 		keyField, recordIdField, isOutField := Field("key"), Field("record_id"), Field("is_out")
