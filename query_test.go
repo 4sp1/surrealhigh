@@ -56,6 +56,17 @@ func TestCondition_ValuedVars(t *testing.T) {
 }
 
 func TestWhereClauseString(t *testing.T) {
+	t.Run("a0=$a0 and (b1=$b1 or c2=$c2) and d3=$d3 and e4=$e4", func(t *testing.T) {
+		assert.Equal(t, "((a0 IS $a0) AND (((b1 IS $b1) OR (c2 IS $c2)) AND ((d3 IS $d3) AND (e4 IS $e4))))", NewConditionAnd(
+			NewConditionIs(NewConditionAtomField(Field("a0")), NewConditionAtomVar("a0", nil)),
+			NewConditionOr(
+				NewConditionIs(NewConditionAtomField(Field("b1")), NewConditionAtomVar("b1", nil)),
+				NewConditionIs(NewConditionAtomField(Field("c2")), NewConditionAtomVar("c2", nil)),
+			),
+			NewConditionIs(NewConditionAtomField(Field("d3")), NewConditionAtomVar("d3", nil)),
+			NewConditionIs(NewConditionAtomField(Field("e4")), NewConditionAtomVar("e4", nil)),
+		).String())
+	})
 	t.Run("key=$key and record_id=$id and is_out=false", func(t *testing.T) {
 		keyField, recordIdField, isOutField := Field("key"), Field("record_id"), Field("is_out")
 		keyVar, idVar := varWhereClause("key"), varWhereClause("id")

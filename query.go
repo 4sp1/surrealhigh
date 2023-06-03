@@ -181,12 +181,26 @@ func NewConditionIsNot(l ConditionAtom, r ConditionAtom) Condition {
 	return valuedBinaryWhereClause{l: l, r: r, op: whereOpIsNot}
 }
 
-func NewConditionAnd(l Condition, r Condition) Condition {
-	return valuedBinaryWhereClause{
-		op: whereOpAnd,
-		l:  l,
-		r:  r,
+func NewConditionAnd(c0 Condition, c ...Condition) Condition {
+	return newRecursiveCondition(whereOpAnd, c0, c...)
+}
+
+func NewConditionOr(c0 Condition, c ...Condition) Condition {
+	return newRecursiveCondition(whereOpOr, c0, c...)
+}
+
+func newBinaryCondition(l Condition, r Condition, op whereOp) Condition {
+	return valuedBinaryWhereClause{op: op, l: l, r: r}
+}
+
+func newRecursiveCondition(op whereOp, c0 Condition, c ...Condition) Condition {
+	if len(c) == 0 {
+		return c0
 	}
+	if len(c) == 1 {
+		return newBinaryCondition(c0, c[0], op)
+	}
+	return newBinaryCondition(c0, newRecursiveCondition(op, c[0], c[1:]...), op)
 }
 
 type selectOrderBy struct {
@@ -229,6 +243,7 @@ func (w binaryWhereClause) String() string {
 type whereOp string
 
 const (
+	whereOpOr    = whereOp("OR")
 	whereOpAnd   = whereOp("AND")
 	whereOpIs    = whereOp("IS")
 	whereOpIsNot = whereOp("IS NOT")
