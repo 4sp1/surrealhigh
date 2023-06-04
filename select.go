@@ -10,6 +10,7 @@ import (
 
 type surrealDriver interface {
 	Query(sql string, vars interface{}) (interface{}, error)
+	Update(what string, data interface{}) (interface{}, error)
 }
 
 type SelectDriver interface {
@@ -32,6 +33,10 @@ type DBSelect[D Doc] interface {
 	Do() ([]D, error)
 }
 
+type DBSelectAndUpdate[D Doc] interface {
+	Do() (D, error)
+}
+
 func SelectOn[D Doc](q Select, db SelectDriver) DBSelect[D] {
 	return DBSelect[D](dbSelect[D]{
 		query: q,
@@ -39,9 +44,28 @@ func SelectOn[D Doc](q Select, db SelectDriver) DBSelect[D] {
 	})
 }
 
+func SelectAndUpdate[D DocWithID](q Select, update func(D) D, db SelectDriver) DBSelectAndUpdate[D] {
+	return DBSelectAndUpdate[D](dbSelectUpdate[D]{
+		query:  q,
+		update: update,
+		db:     db,
+	})
+}
+
 type dbSelect[D Doc] struct {
 	query Select
 	db    SelectDriver
+}
+
+type DocWithID interface {
+	Doc
+	Id() Thing
+}
+
+type dbSelectUpdate[D DocWithID] struct {
+	query  Select
+	update func(D) D
+	db     SelectDriver
 }
 
 type ErrDuplicateValuation struct {
@@ -106,4 +130,24 @@ func (q dbSelect[D]) Do() ([]D, error) {
 
 	return results[0].Results, nil
 
+}
+
+var ErrNoDoc = errors.New("no document matched")
+
+func (u dbSelectUpdate[D]) Do() (D, error) {
+	q, db, update := u.query, u.db, u.update
+	docs, err := SelectOn[D](q, db).Do()
+	if err != nil {
+		var d D
+		return d, fmt.Errorf("select on %q: %w", d.Table(), err)
+	}
+	if len(docs) == 0 {
+		var d D
+		return d, fmt.Errorf("select on %q: %w", d.Table(), ErrNoDoc)
+	}
+	newDoc := update(docs[0])
+	if _, err := db.driver().Update(docs[0].Id().String(), newDoc); err != nil {
+		return newDoc, fmt.Errorf("sdb: update %q: %w", docs[0].Id(), err)
+	}
+	return newDoc, nil
 }

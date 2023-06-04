@@ -9,13 +9,18 @@ import (
 
 // TODO move to a sub test package
 
-type mockDriver struct{}
+type mockDriver struct{ update *bool }
 
-func (driver mockDriver) driver() surrealDriver {
-	return mockDriverResult{}
+func newMockDriver() mockDriver {
+	var b bool
+	return mockDriver{&b}
 }
 
-type mockDriverResult struct{}
+func (driver mockDriver) driver() surrealDriver {
+	return mockDriverResult{update: driver.update}
+}
+
+type mockDriverResult struct{ update *bool }
 
 func (mock mockDriverResult) Query(sql string, vars interface{}) (interface{}, error) {
 
@@ -33,7 +38,7 @@ func (mock mockDriverResult) Query(sql string, vars interface{}) (interface{}, e
 		Status string    `json:"status"`
 	}{
 		Result: []mockDoc{
-			{RecordID: 0, IsOut: false},
+			{RecordID: 0, IsOut: *mock.update},
 		},
 		Status: "OK",
 	})
@@ -42,22 +47,38 @@ func (mock mockDriverResult) Query(sql string, vars interface{}) (interface{}, e
 
 }
 
+func (mock mockDriverResult) Update(what string, data interface{}) (interface{}, error) {
+	*mock.update = true
+	return nil, nil
+}
+
 type mockDoc struct {
 	RecordID int
 	IsOut    bool
 }
 
-func (doc mockDoc) Table() Table {
-	return Table("")
-}
+func (doc mockDoc) Table() Table { return "" }
+func (doc mockDoc) Id() Thing    { return "" }
 
 func TestDBSelect_Do(t *testing.T) {
 	t.Run("mock driver result no error", func(t *testing.T) {
-		results, err := SelectOn[mockDoc](NewQueryFrom(Table("")), mockDriver{}).Do()
+		results, err := SelectOn[mockDoc](NewQueryFrom(Table("")), newMockDriver()).Do()
 		require.NoError(t, err)
 		assert.Equal(t, []mockDoc{
 			{RecordID: 0, IsOut: false},
 		}, results)
 	})
+}
 
+func TestDBSelectAndUpdate_Do(t *testing.T) {
+	t.Run("mock driver update no error", func(t *testing.T) {
+		db := newMockDriver()
+		_, err := SelectAndUpdate(NewQueryFrom(Table("")), func(mockDoc) mockDoc { return mockDoc{} }, db).Do()
+		require.NoError(t, err)
+		docs, err := SelectOn[mockDoc](NewQueryFrom(Table("")), db).Do()
+		require.NoError(t, err)
+		assert.Equal(t, []mockDoc{
+			{RecordID: 0, IsOut: true},
+		}, docs)
+	})
 }
