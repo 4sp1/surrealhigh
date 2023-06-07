@@ -28,7 +28,7 @@ func (t Table) Prefix() string {
 }
 
 func (i Id) Thing(t Table) Thing {
-	return Thing(t.Prefix() + "⟨" + i.String() + "⟩")
+	return Thing(t.Prefix() + "`" + i.String() + "`")
 }
 
 func NewID() Id {
