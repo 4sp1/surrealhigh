@@ -1,6 +1,7 @@
 package surrealhigh
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,4 +82,15 @@ func TestDBSelectAndUpdate_Do(t *testing.T) {
 			{RecordID: 0, IsOut: true},
 		}, docs)
 	})
+}
+
+func (mock mockDriverResult) Create(thing string, data interface{}) (interface{}, error) {
+	tb, th := Table("mock"), Thing("mock:00000000_0000_0000_0000_000000000000")
+	id, err := NewIDFromThing(th, tb)
+	if err != nil {
+		return nil, fmt.Errorf("new id from thing: %w", err)
+	}
+	return struct {
+		Id string `json:"id"`
+	}{id.String()}, nil
 }

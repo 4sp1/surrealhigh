@@ -11,9 +11,10 @@ import (
 type surrealDriver interface {
 	Query(sql string, vars interface{}) (interface{}, error)
 	Update(what string, data interface{}) (interface{}, error)
+	Create(thing string, data interface{}) (interface{}, error)
 }
 
-type SelectDriver interface {
+type SurrealDriver interface {
 	driver() surrealDriver
 }
 
@@ -25,7 +26,7 @@ func (driver defaultDriver) driver() surrealDriver {
 	return driver.db
 }
 
-func DefaultDriver(db *surrealdb.DB) SelectDriver {
+func DefaultDriver(db *surrealdb.DB) SurrealDriver {
 	return defaultDriver{db}
 }
 
@@ -37,14 +38,14 @@ type DBSelectAndUpdate[D Doc] interface {
 	Do() (D, error)
 }
 
-func SelectOn[D Doc](q Select, db SelectDriver) DBSelect[D] {
+func SelectOn[D Doc](q Select, db SurrealDriver) DBSelect[D] {
 	return DBSelect[D](dbSelect[D]{
 		query: q,
 		db:    db,
 	})
 }
 
-func SelectAndUpdate[D DocWithID](q Select, update func(D) D, db SelectDriver) DBSelectAndUpdate[D] {
+func SelectAndUpdate[D DocWithID](q Select, update func(D) D, db SurrealDriver) DBSelectAndUpdate[D] {
 	return DBSelectAndUpdate[D](dbSelectUpdate[D]{
 		query:  q,
 		update: update,
@@ -54,7 +55,7 @@ func SelectAndUpdate[D DocWithID](q Select, update func(D) D, db SelectDriver) D
 
 type dbSelect[D Doc] struct {
 	query Select
-	db    SelectDriver
+	db    SurrealDriver
 }
 
 type DocWithID interface {
@@ -65,7 +66,7 @@ type DocWithID interface {
 type dbSelectUpdate[D DocWithID] struct {
 	query  Select
 	update func(D) D
-	db     SelectDriver
+	db     SurrealDriver
 }
 
 type ErrDuplicateValuation struct {
