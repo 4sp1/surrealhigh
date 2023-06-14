@@ -57,6 +57,10 @@ func (i Id) String() string {
 
 type Table string
 
+func (t Table) String() string {
+	return string(t)
+}
+
 func (t Table) Prefix() string {
 	return string(t) + ":"
 }
@@ -68,3 +72,7 @@ func (i Id) Thing(t Table) Thing {
 func NewID() Id {
 	return Id(uuid.New())
 }
+
+type Package string
+
+func (pkg Package) String() string { return string(pkg) }
