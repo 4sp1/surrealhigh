@@ -18,7 +18,7 @@
 //
 // running this command
 //
-//	surrealhigh-gen-types -doc=Record -pkg=records [.]
+//	surrealhigh-gen-types -doc=Record -pkg=records [-o out.go] [.]
 //
 // in the same directory will create the file sigh_doc_record.go, in package records,
 // containing the toolkit you can use to build surrealhigh queries.
@@ -32,6 +32,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"io"
 	"os"
 	"strings"
 
@@ -44,6 +45,7 @@ import (
 var (
 	doc = flag.String("doc", "", "comma-separated list of doc struct names; must be set")
 	pkg = flag.String("pkg", "", "destination package")
+	out = flag.String("o", "", "destination file .go")
 )
 
 func main() {
@@ -66,7 +68,16 @@ func main() {
 	}
 	tags := []string{} // build tags
 
-	g := Generator{}
+	g := Generator{out: os.Stdout}
+	if len(*out) > 0 {
+		f, err := os.Create(*out)
+		if err != nil {
+			fmt.Println("out:", err)
+			os.Exit(1)
+		}
+		g.out = f
+		defer f.Close()
+	}
 	g.parsePackage(args, tags)
 
 	for _, docName := range docs {
@@ -84,7 +95,7 @@ func main() {
 				if err := jennifer.NewDoc(
 					surrealhigh.Package(*pkg),
 					surrealhigh.Table(strings.ToLower(v.structName)),
-					v.docFields()...).Write(os.Stdout); err != nil {
+					v.docFields()...).Write(g.out); err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
@@ -96,6 +107,7 @@ func main() {
 
 type Generator struct {
 	pkg *Package
+	out io.Writer
 }
 
 type Package struct {
