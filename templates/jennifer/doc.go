@@ -181,15 +181,15 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 	f.Type().Id(doc.docIdType()).Qual(origin, "Id")
 
 	// ## doc.Id() method
-	// func (doc docA) Id() surrealhigh.Id { return doc.DocID }
+	// func (doc docA) Id() surrealhigh.Thing { return surrealhigh.Id(doc.DocID).Thing(doc.Table()) }
 
 	f.Func().
 		Params(Id("doc").Id(doc.docStructId())).
 		Id("Id").
 		Params().
-		Qual(origin, "Id").
+		Qual(origin, "Thing").
 		Block(
-			Return(Qual(origin, "Id").Parens(Id("doc").Dot("DocID"))))
+			Return(Qual(origin, "Id").Parens(Id("doc").Dot("DocID"))).Dot("Thing").Call(Id("doc").Dot("Table").Call()))
 
 	// ## doc.Table() method
 	// func (doc docA) Table() surrealhigh.Table { return "a" }

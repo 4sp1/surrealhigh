@@ -32,7 +32,7 @@ type DBDoc interface {
 func NewDefaultDoc(doc Doc, db SurrealDriver) DefaultDoc {
 	return DefaultDoc{
 		doc:    doc,
-		driver: db.driver(),
+		driver: db.Driver(),
 	}
 }
 
