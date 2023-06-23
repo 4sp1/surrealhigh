@@ -17,7 +17,7 @@ func newMockDriver() mockDriver {
 	return mockDriver{&b}
 }
 
-func (driver mockDriver) driver() surrealDriver {
+func (driver mockDriver) driver() SurrealDB {
 	return mockDriverResult{update: driver.update}
 }
 

@@ -8,21 +8,21 @@ import (
 	"github.com/surrealdb/surrealdb.go"
 )
 
-type surrealDriver interface {
+type SurrealDB interface {
 	Query(sql string, vars interface{}) (interface{}, error)
 	Update(what string, data interface{}) (interface{}, error)
 	Create(thing string, data interface{}) (interface{}, error)
 }
 
 type SurrealDriver interface {
-	driver() surrealDriver
+	driver() SurrealDB
 }
 
 type defaultDriver struct {
 	db *surrealdb.DB
 }
 
-func (driver defaultDriver) driver() surrealDriver {
+func (driver defaultDriver) driver() SurrealDB {
 	return driver.db
 }
 

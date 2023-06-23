@@ -80,13 +80,14 @@ func (field DocField) Tag() map[string]string {
 
 func (doc Doc) docStructFields() (codes []Code) {
 	for _, field := range doc.fields {
-		if field.qual != "" {
-			codes = append(codes,
-				Id(field.docStructFieldNameId()).
-					Qual(field.qual, field.docStructFieldTypeId(doc)).
-					Tag(field.Tag()))
-			continue
-		}
+		// XXX
+		// if field.qual != "" {
+		// 	codes = append(codes,
+		// 		Id(field.docStructFieldNameId()).
+		// 			Qual(field.qual, field.docStructFieldTypeId(doc)).
+		// 			Tag(field.Tag()))
+		// 	continue
+		// }
 		codes = append(codes,
 			Id(field.docStructFieldNameId()).
 				Id(field.docStructFieldTypeId(doc)).
