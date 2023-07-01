@@ -137,6 +137,10 @@ func (q dbSelect[D]) Do() ([]D, error) {
 		return nil, ErrNoResult
 	}
 
+	if len(results[0].Results) == 0 {
+		return nil, ErrNoResult
+	}
+
 	return results[0].Results, nil
 
 }
