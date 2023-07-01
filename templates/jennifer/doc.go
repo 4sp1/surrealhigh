@@ -186,7 +186,7 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 			if _, ok := times[field]; ok {
 				stmt = stmt.Parens(
 					Id(field.docStructFieldTypeStructTypeId(doc)).
-						Values(Dict{Id("t"): Id("a").Dot(field.docStructFieldNameId())}))
+						Values(Dict{Id("t"): Id(a).Dot(field.docStructFieldNameId())}))
 			} else {
 				stmt = stmt.Parens(Id(a).Dot(field.docStructFieldNameId()))
 			}
