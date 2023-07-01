@@ -80,12 +80,12 @@ func (v *fDocA_P) MarshalJSON() ([]byte, error) {
 func (v *fDocA_P) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, v.t)
 }
-func (id fDocA_DocID) MarshalJSON() ([]byte, error) {
-	sid := surrealhigh.Id(id)
+func (id *fDocA_DocID) MarshalJSON() ([]byte, error) {
+	sid := surrealhigh.Id(*id)
 	sth := sid.Thing(id.Table())
 	return []byte("\"" + sth + "\""), nil
 }
-func (v fDocA_DocID) UnmarshalJSON(b []byte) error {
+func (v *fDocA_DocID) UnmarshalJSON(b []byte) error {
 	th := surrealhigh.Thing(b[1 : len(b)-1])
 	tb := docA{}.Table()
 	id, err := surrealhigh.NewIDFromThing(th, tb)

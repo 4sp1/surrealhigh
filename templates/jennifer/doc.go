@@ -334,12 +334,13 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 	// DocID marshaler
 	// func (id fDocA_DocID) MarshalJSON() ([]byte, error) {...}
 
-	f.Func().Params(Id("id").Id(doc.docIdType())).
+	f.Func().
+		Params(Id("id").Op("*").Id(doc.docIdType())).
 		Id("MarshalJSON").
 		Params().
 		Params(Index().Byte(), Error()).
 		Block(
-			Id("sid").Op(assign).Qual(origin, "Id").Parens(Id("id")),
+			Id("sid").Op(assign).Qual(origin, "Id").Parens(Op("*").Id("id")),
 			Id("sth").Op(assign).Id("sid").Dot("Thing").Call(Id("id").Dot("Table").Call()),
 			Return(Index().Byte().Parens(
 				Lit(litQuote).Op(plus).Id("sth").Op(plus).Lit(litQuote),
@@ -348,7 +349,8 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 	// DocID unmarshaler
 	// func (id fDocA_DocID) UnmarshalJSON(b []byte) error {...}
 
-	f.Func().Params(Id("v").Id(doc.docIdType())).
+	f.Func().
+		Params(Id("v").Op("*").Id(doc.docIdType())).
 		Id("UnmarshalJSON").
 		Params(Id("b").Index().Byte()).
 		Params(Error()).
