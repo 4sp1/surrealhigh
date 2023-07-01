@@ -68,18 +68,24 @@ func main() {
 	}
 	tags := []string{} // build tags
 
+	if err := _main(args, tags, docs, *pkg, *out); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+}
+
+func _main(args, tags, docs []string, pkg, out string) error {
 	g := Generator{out: os.Stdout}
-	if len(*out) > 0 {
-		f, err := os.Create(*out)
+	if len(out) > 0 {
+		f, err := os.Create(out)
 		if err != nil {
-			fmt.Println("out:", err)
-			os.Exit(1)
+			return fmt.Errorf("out: %w", err)
 		}
 		g.out = f
 		defer f.Close()
 	}
 	g.parsePackage(args, tags)
-
 	for _, docName := range docs {
 		g.generate(docName)
 		for _, f := range g.pkg.files {
@@ -93,16 +99,15 @@ func main() {
 				}
 				fmt.Println(v)
 				if err := jennifer.NewDoc(
-					surrealhigh.Package(*pkg),
+					surrealhigh.Package(pkg),
 					surrealhigh.Table(strings.ToLower(v.structName)),
 					v.docFields()...).Write(g.out); err != nil {
-					fmt.Println(err)
-					os.Exit(1)
+					return err
 				}
 			}
 		}
 	}
-
+	return nil
 }
 
 type Generator struct {
@@ -158,6 +163,9 @@ func (v Value) docFields() (fields []jennifer.DocField) {
 		if field.isPointer {
 			opts = append(opts, jennifer.NewFieldWithPointer())
 		}
+		if field.isArray {
+			opts = append(opts, jennifer.NewFieldWithArray())
+		}
 
 		log.Trace().
 			Str("fieldName", field.fieldName).
@@ -180,6 +188,7 @@ type Field struct {
 	typeQual  string
 	typeIdent string
 	isPointer bool
+	isArray   bool
 }
 
 func (f Field) String() string {
@@ -189,24 +198,27 @@ func (f Field) String() string {
 	return fmt.Sprintf("[ptr:%v]%v(%v)", f.isPointer, f.typeIdents, f.fieldName)
 }
 
-func typeIdents(e ast.Expr, star bool) ([]string, bool) {
+func typeIdents(e ast.Expr, star bool, arr bool) ([]string, bool, bool) {
 	switch t := e.(type) {
 	case *ast.Ident:
-		return []string{t.Name}, star
+		return []string{t.Name}, star, arr
 	case *ast.StarExpr:
-		i, star := typeIdents(t.X, true)
-		return i, star
+		i, star, arr := typeIdents(t.X, true, arr)
+		return i, star, arr
 	case *ast.SelectorExpr:
-		i, star := typeIdents(t.X, star)
-		return append(i, t.Sel.Name), star
+		i, star, arr := typeIdents(t.X, star, arr)
+		return append(i, t.Sel.Name), star, arr
+	case *ast.ArrayType:
+		i, star, arr := typeIdents(t.Elt, star, true)
+		return i, star, arr
 	default:
 		log.Fatal().Msgf("%#v", t)
 	}
-	return nil, false
+	return nil, false, false
 }
 
 func (f *Field) generateTypeIdents() {
-	f.typeIdents, f.isPointer = typeIdents(f.typeExpr, false)
+	f.typeIdents, f.isPointer, f.isArray = typeIdents(f.typeExpr, false, false)
 	if len(f.typeIdents) == 2 {
 		f.typeQual = f.typeIdents[0]
 		f.typeIdent = f.typeIdents[1]

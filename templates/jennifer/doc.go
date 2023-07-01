@@ -29,6 +29,11 @@ type DocField struct {
 	t     string
 	qual  string
 	isptr bool
+	isarr bool
+}
+
+func (f DocField) isTime() bool {
+	return f.t == "Time" && f.qual == "time"
 }
 
 type NewFieldOption func(DocField) DocField
@@ -45,6 +50,13 @@ func NewFieldWithPointer() NewFieldOption {
 	log.Trace().Msg("NewFieldWithPointer")
 	return func(df DocField) DocField {
 		df.isptr = true
+		return df
+	}
+}
+
+func NewFieldWithArray() NewFieldOption {
+	return func(df DocField) DocField {
+		df.isarr = true
 		return df
 	}
 }
@@ -129,11 +141,19 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 
 	var pubDocFields []Code
 	for _, field := range fields {
-		if field.qual != "" {
-			pubDocFields = append(pubDocFields, Id(field.docStructFieldNameId()).Qual(field.qual, field.t))
-			continue
+		stmt := Id(field.docStructFieldNameId())
+		if field.isarr {
+			stmt = stmt.Index()
 		}
-		pubDocFields = append(pubDocFields, Id(field.docStructFieldNameId()).Id(field.t))
+		if field.isptr {
+			stmt = stmt.Op("*")
+		}
+		if field.qual != "" {
+			stmt = stmt.Qual(field.qual, field.t)
+		} else {
+			stmt = stmt.Id(field.t)
+		}
+		pubDocFields = append(pubDocFields, stmt)
 	}
 	pubDocFields = append(pubDocFields,
 		Id("id").Qual(origin, "Id"),
@@ -151,8 +171,13 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 	times := make(map[DocField]struct{})
 	for _, field := range fields {
 		stmt := f.Type().Id(field.docStructFieldTypeId(doc))
-		if field.isptr {
-			stmt = stmt.Op("*")
+		if !field.isTime() {
+			if field.isarr {
+				stmt = stmt.Index()
+			}
+			if field.isptr {
+				stmt = stmt.Op("*")
+			}
 		}
 		if field.qual == "" {
 			stmt.Id(field.t)
@@ -160,7 +185,7 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 		}
 		// TODO(malikbenkirane) this could work for any struct type
 		// suggested naming "embed", "structure embedding", etc...
-		if field.qual == "time" && field.t == "Time" {
+		if field.isTime() {
 			t := field.docStructFieldTypeStructTypeId(doc)
 			stmt.Id(t)
 			times[field] = struct{}{}
@@ -169,9 +194,17 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 		stmt.Qual(field.qual, field.t)
 	}
 	for t := range times {
+		stmt := Id("t")
+		if t.isarr {
+			stmt = stmt.Index()
+		}
+		if t.isptr {
+			stmt = stmt.Op("*")
+		}
+		stmt = stmt.Qual("time", "Time")
 		f.Type().
 			Id(t.docStructFieldTypeStructTypeId(doc)).
-			Struct(Id("t").Qual("time", "Time"))
+			Struct(stmt)
 	}
 
 	// ## public doc to private doc
@@ -278,16 +311,24 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 	//  	return json.Umarshal(b, v.t)
 	// }
 	for t := range times {
+		stmt := Id("v").Dot("t")
+		if t.isptr {
+			stmt = Op("*").Id("v").Dot("t")
+		}
 		f.Func().Params(Id("v").Op("*").Id(t.docStructFieldTypeId(doc))).
 			Id("MarshalJSON").
 			Params().
 			Params(Index().Byte(), Error()).
-			Block(Return(Qual("encoding/json", "Marshal").Call(Qual("time", "Time").Parens(Id("v").Dot("t")))))
+			Block(Return(Qual("encoding/json", "Marshal").Call(Qual("time", "Time").Parens(stmt))))
+		stmt = Op("&").Id("v").Dot("t")
+		if t.isptr {
+			stmt = Id("v").Dot("t")
+		}
 		f.Func().Params(Id("v").Op("*").Id(t.docStructFieldTypeId(doc))).
 			Id("UnmarshalJSON").
 			Params(Id("b").Index().Byte()).
 			Params(Error()).
-			Block(Return(Qual("encoding/json", "Unmarshal").Call(Id("b"), Op("&").Id("v").Dot("t"))))
+			Block(Return(Qual("encoding/json", "Unmarshal").Call(Id("b"), stmt)))
 	}
 
 	// DocID marshaler
