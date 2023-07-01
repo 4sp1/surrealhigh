@@ -68,6 +68,11 @@ func (field DocField) docStructFieldTypeId(doc Doc) string {
 	return "f" + cc(doc.docStructId()) + "_" + cc(field.String())
 }
 
+// f${Table}_${Field}_struct
+func (field DocField) docStructFieldTypeStructTypeId(doc Doc) string {
+	return "f" + cc(doc.docStructId()) + "_" + cc(field.String()) + "_struct"
+}
+
 // ${Field}
 func (field DocField) docStructFieldNameId() string {
 	return cc(field.String())
@@ -135,25 +140,6 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 		Id("th").Qual(origin, "Thing"))
 	f.Type().Id(cc(table.String())).Struct(pubDocFields...)
 
-	// ## public doc to private doc
-	// func (a A) doc() *docA {...}
-
-	{
-		a := string(table)
-		block := []Code{Var().Id("doc").Id(doc.docStructId())}
-		for _, field := range fields {
-			block = append(block,
-				Id("doc").Dot(field.docStructFieldNameId()).
-					Op("=").
-					Id(field.docStructFieldTypeId(doc)).Parens(
-					Id(a).Dot(field.docStructFieldNameId())))
-		}
-		block = append(block, Return(Op("&").Id("doc")))
-		f.Func().Params(Id(a).Id(doc.docPublicId())).
-			Id("doc").Params().Op("*").Id(doc.docStructId()).
-			Block(block...)
-	}
-
 	// ## doc struct type
 	// type docA struct {...}
 
@@ -162,7 +148,7 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 
 	// ## field types
 	// type fDocA_S t
-
+	times := make(map[DocField]struct{})
 	for _, field := range fields {
 		stmt := f.Type().Id(field.docStructFieldTypeId(doc))
 		if field.isptr {
@@ -172,7 +158,47 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 			stmt.Id(field.t)
 			continue
 		}
+		// TODO(malikbenkirane) this could work for any struct type
+		// suggested naming "embed", "structure embedding", etc...
+		if field.qual == "time" && field.t == "Time" {
+			t := field.docStructFieldTypeStructTypeId(doc)
+			stmt.Id(t)
+			times[field] = struct{}{}
+			continue
+		}
 		stmt.Qual(field.qual, field.t)
+	}
+	for t := range times {
+		f.Type().
+			Id(t.docStructFieldTypeStructTypeId(doc)).
+			Struct(Id("t").Qual("time", "Time"))
+	}
+
+	// ## public doc to private doc
+	// func (a A) doc() *docA {...}
+
+	{
+		a := string(table)
+		block := []Code{Var().Id("doc").Id(doc.docStructId())}
+		for _, field := range fields {
+			stmt := Id("doc").Dot(field.docStructFieldNameId()).
+				Op("=").Id(field.docStructFieldTypeId(doc))
+			if _, ok := times[field]; ok {
+				stmt = stmt.Parens(
+					Id(field.docStructFieldTypeStructTypeId(doc)).
+						Values(Dict{Id("t"): Id("a").Dot(field.docStructFieldNameId())}))
+			} else {
+				stmt = stmt.Parens(Id(a).Dot(field.docStructFieldNameId()))
+			}
+			block = append(block, stmt)
+		}
+		block = append(block, Return(Op("&").Id("doc")))
+		f.Func().
+			Params(Id(a).Id(doc.docPublicId())). // (a A)
+			Id("doc").                           // doc
+			Params().                            // ()
+			Op("*").Id(doc.docStructId()).       // *docA
+			Block(block...)                      // {...}
 	}
 
 	// ## doc id type surrealhihg.Id
@@ -244,6 +270,26 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 				Return(litTable))
 	}
 
+	// Times marshaler/unmarshaler TODO(malikbenkirane) read comments above
+	//	func (v f${Table}_${Field}) MarshalJSON() ([]byte, error) {
+	//  	return json.Marshal(time.Time(*v.t))
+	// }
+	//	func (v f${Table}_${Field}) UnmarshalJSON(b []byte) error {
+	//  	return json.Umarshal(b, v.t)
+	// }
+	for t := range times {
+		f.Func().Params(Id("v").Op("*").Id(t.docStructFieldTypeId(doc))).
+			Id("MarshalJSON").
+			Params().
+			Params(Index().Byte(), Error()).
+			Block(Return(Qual("encoding/json", "Marshal").Call(Qual("time", "Time").Parens(Id("v").Dot("t")))))
+		f.Func().Params(Id("v").Op("*").Id(t.docStructFieldTypeId(doc))).
+			Id("UnmarshalJSON").
+			Params(Id("b").Index().Byte()).
+			Params(Error()).
+			Block(Return(Qual("encoding/json", "Unmarshal").Call(Id("b"), Op("&").Id("v").Dot("t"))))
+	}
+
 	// DocID marshaler
 	// func (id fDocA_DocID) MarshalJSON() ([]byte, error) {...}
 
@@ -266,9 +312,11 @@ func NewDoc(pkg sh.Package, table sh.Table, fields ...DocField) (doc Doc) {
 		Params(Id("b").Index().Byte()).
 		Params(Error()).
 		Block(
-			Id("tb").Op(assign).Qual(origin, "Table").Parens(Lit("z")),
-			Id("th").Op(assign).Qual(origin, "Thing").Parens(
-				Lit("z:").Op(plus).String().Parens(Id("b"))),
+			Id("th").Op(assign).
+				Qual(origin, "Thing").Parens(
+				Id("b").Index(Lit(1), Id("len").Call(Id("b")).Op("-").Lit(1))),
+			Id("tb").Op(assign).
+				Id(doc.docStructId()).Values().Dot("Table").Call(),
 			List(Id("id"), Id("err")).Op(assign).
 				Qual(origin, "NewIDFromThing").Call(Id("th"), Id("tb")),
 			If(Id("err").Op(notEqual).Nil()).Block(

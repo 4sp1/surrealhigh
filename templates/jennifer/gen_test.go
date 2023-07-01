@@ -20,7 +20,7 @@ func TestNewDoc(t *testing.T) {
 			err := os.Mkdir(dirPath, 0755)
 			require.NoError(t, err, "prepare dirPath")
 		}
-		output := NewDoc("gold", "a", NewField("s", "string")).file
+		output := NewDoc("gold", "a", NewField("s", "string"), NewField("t", "Time", NewFieldWithQual("time"))).file
 		f, err := os.Create(path.Join(dirPath, "sigh_doc_gen.go"))
 		require.NoError(t, err, "create sigh_doc_gen.go")
 		require.NoError(t, output.Render(f))

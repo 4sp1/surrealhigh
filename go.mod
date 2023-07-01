@@ -7,12 +7,10 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/stretchr/testify v1.8.3
 	github.com/surrealdb/surrealdb.go v0.2.1
+	golang.org/x/tools v0.10.0
 )
 
-require (
-	golang.org/x/mod v0.11.0 // indirect
-	golang.org/x/tools v0.10.0 // indirect
-)
+require golang.org/x/mod v0.11.0 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
