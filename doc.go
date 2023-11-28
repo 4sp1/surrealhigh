@@ -26,19 +26,19 @@ type DBDoc interface {
 	json.Marshaler
 	Create() (Id, error)
 
-	db() surrealDriver
+	db() SurrealDB
 }
 
 func NewDefaultDoc(doc Doc, db SurrealDriver) DefaultDoc {
 	return DefaultDoc{
 		doc:    doc,
-		driver: db.driver(),
+		driver: db.Driver(),
 	}
 }
 
 type DefaultDoc struct {
 	doc    Doc
-	driver surrealDriver
+	driver SurrealDB
 }
 
 var _ DBDoc = DefaultDoc{}
@@ -51,7 +51,7 @@ func (doc DefaultDoc) MarshalJSON() ([]byte, error) {
 	return json.Marshal(doc.doc)
 }
 
-func (doc DefaultDoc) db() surrealDriver {
+func (doc DefaultDoc) db() SurrealDB {
 	return doc.driver
 }
 

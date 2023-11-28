@@ -8,21 +8,21 @@ import (
 	"github.com/surrealdb/surrealdb.go"
 )
 
-type surrealDriver interface {
+type SurrealDB interface {
 	Query(sql string, vars interface{}) (interface{}, error)
 	Update(what string, data interface{}) (interface{}, error)
 	Create(thing string, data interface{}) (interface{}, error)
 }
 
 type SurrealDriver interface {
-	driver() surrealDriver
+	Driver() SurrealDB
 }
 
 type defaultDriver struct {
 	db *surrealdb.DB
 }
 
-func (driver defaultDriver) driver() surrealDriver {
+func (driver defaultDriver) Driver() SurrealDB {
 	return driver.db
 }
 
@@ -31,10 +31,18 @@ func DefaultDriver(db *surrealdb.DB) SurrealDriver {
 }
 
 type DBSelect[D Doc] interface {
+	// Do returns with the following errors; in chronological order:
+	// - type ErrDuplicateValuation
+	// - any error from surrealdb.go query driver
+	// - any error from surrealdb.go unmarshal
+	// - ErrNoResult
 	Do() ([]D, error)
 }
 
 type DBSelectAndUpdate[D Doc] interface {
+	// Do returns with the following errors
+	// - Any error from DBSelect.Do
+	// - ErrNoDoc
 	Do() (D, error)
 }
 
@@ -109,7 +117,7 @@ func (q dbSelect[D]) Do() ([]D, error) {
 
 	}
 
-	data, err := q.db.driver().Query(q.query.String(), vars)
+	data, err := q.db.Driver().Query(q.query.String(), vars)
 	if err != nil {
 		return nil, fmt.Errorf("surrealdb: %w", err)
 	}
@@ -147,7 +155,7 @@ func (u dbSelectUpdate[D]) Do() (D, error) {
 		return d, fmt.Errorf("select on %q: %w", d.Table(), ErrNoDoc)
 	}
 	newDoc := update(docs[0])
-	if _, err := db.driver().Update(docs[0].Id().String(), newDoc); err != nil {
+	if _, err := db.Driver().Update(docs[0].Id().String(), newDoc); err != nil {
 		return newDoc, fmt.Errorf("sdb: update %q: %w", docs[0].Id(), err)
 	}
 	return newDoc, nil
